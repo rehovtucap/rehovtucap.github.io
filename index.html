@@ -3478,7 +3478,12 @@ function useAppState(){
         setUsers(au);setSignups(s||[]);setSettings(st||DEFAULT_SETTINGS);
         setBroadcasts(b||[]);setDms(d||[]);setGrp(g||[]);setReports(r||[]);
       }catch{}
-      setScreen('landing');
+      // If a ref link was used, go straight to registration
+      if(ref){
+        setScreen('team');
+      } else {
+        setScreen('landing');
+      }
     },1600);
   },[]);
 
