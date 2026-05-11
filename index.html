@@ -548,7 +548,7 @@ function Landing({onNavigate}){
         <div style={{fontSize:13,color:'rgba(255,255,255,.75)',lineHeight:1.6,marginBottom:14}}>
           Help others own their VTU sites. Earn ₦500 per sign-up. Target ₦60,000/month as an ambassador. <b style={{color:'#fff'}}>Open to students AND non-students.</b>
         </div>
-        <button onClick={()=>{const urlRef=new URLSearchParams(window.location.search).get('ref');if(urlRef)sessionStorage.setItem('ref_code',urlRef);onNavigate('team');}} style={{width:'100%',padding:'13px',background:'var(--gold)',border:'none',borderRadius:12,color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer'}}>
+        <button onClick={()=>onNavigate('team')} style={{width:'100%',padding:'13px',background:'var(--gold)',border:'none',borderRadius:12,color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer'}}>
           Apply to Join Team →
         </button>
       </div>
@@ -656,6 +656,8 @@ function StudentReg({settings,saveSignups,signups,onNavigate}){
   const refCode=sessionStorage.getItem('ref_code')||'';
   const [form,setForm]=useState({name:'',phone:'',email:'',siteName:'',ref:refCode});
   const [err,setErr]=useState('');const [done,setDone]=useState(false);
+  const [step,setStep]=useState('consent'); // consent | form
+  const [consentChecked,setConsentChecked]=useState(false);
   const set=k=>e=>setForm(f=>({...f,[k]:e.target.value}));
   const s=settings||DEFAULT_SETTINGS;
   const submit=async()=>{
@@ -723,12 +725,8 @@ function TeamReg({users,saveUsers,onNavigate}){
     const nc=genCode(form.role,users);
     const newMember={
       id:nc,code:nc,
-      name:form.name,phone:form.phone,email:emailLower,
-      password:form.password,state:form.state,occupation:form.occupation,
-      accName:form.accName,accNum:form.accNum,bank:form.bank,
-      securityQ:form.secQ,securityA:form.secA,
-      role:form.role,
-      referredBy:form.ref||'',   // ← FIX: map ref → referredBy so upline chain works
+      ...form,
+      email:emailLower,
       joined:TODAY,
       approved:true,      // auto-approved — can login immediately
       verified:false,     // unverified badge until founder certifies
@@ -748,202 +746,111 @@ function TeamReg({users,saveUsers,onNavigate}){
     await sendEmail(emailLower,form.name,subject,html);
   };
   const newCode=sessionStorage.getItem('new_member_code')||'';
-  const [ndaAccepted,setNdaAccepted]=useState(false);
-  const [onboardStep,setOnboardStep]=useState(0); // 0=welcome,1=workbook,2=rules,3=role,4=earnings,5=nda
+  if(done)return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div className="fade-up" style={{background:'#fff',borderRadius:20,padding:28,maxWidth:420,width:'100%',textAlign:'center',boxShadow:'var(--shadow)'}}>
+        <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+        <div style={{fontWeight:800,fontSize:20,color:'var(--blue)',marginBottom:8}}>Welcome to RehoVTU!</div>
+        <div style={{background:'var(--dark)',borderRadius:12,padding:'14px',marginBottom:16,color:'#fff'}}>
+          <div style={{fontSize:11,opacity:.6,letterSpacing:1,marginBottom:4}}>YOUR MEMBER CODE</div>
+          <div style={{fontSize:28,fontWeight:900,color:'var(--gold)',letterSpacing:3}}>{newCode}</div>
+        </div>
+        <div style={{color:'var(--muted)',fontSize:13,marginBottom:20,lineHeight:1.6}}>
+          You can now log in immediately with your email and password. Screenshot your code above!
+        </div>
+        <Btn full onClick={()=>onNavigate('login')}>Login Now →</Btn>
+      </div>
+    </div>
+  );
   const roleInfo={
-    ambassador:{teamMin:'No team required',teamDesc:'You work solo. Focus on getting sign-ups.',earn:'₦500 per sign-up (first 50) then ₦700 per sign-up after 50',target:'100 sign-ups = ₦60,000/month',report:'Daily report by 7:00 PM'},
-    cc:{teamMin:'Minimum 5 Ambassadors',teamDesc:'Recruit and manage at least 5 Ambassadors under you.',earn:'₦200 per sign-up from your Ambassadors',target:'2,000 sign-ups = ₦400,000/month',report:'Daily report by 7:30 PM'},
-    pm:{teamMin:'Minimum 3 Campus Coordinators',teamDesc:'Manage at least 3 CCs, each with their own ambassadors.',earn:'₦100 per sign-up across your state',target:'10,000 sign-ups = ₦2,000,000/month',report:'Daily report by 8:00 PM'},
-    pfc:{teamMin:'Minimum 2 State Project Managers',teamDesc:'Oversee PMs and their entire chains.',earn:'₦50 per sign-up across your full portfolio',target:'50,000 sign-ups = ₦5,000,000/month',report:'Daily report by 9:00 PM'},
+    ambassador:{earn:'₦500 per student signup (slots 1-50), ₦700 per signup above 50',team:'No minimum team size',quota:'100 student signups per quarter',report:'Daily report by 7:00 PM'},
+    cc:{earn:'₦800 commission per ambassador activated + override earnings',team:'Minimum 5 Ambassadors',quota:'2,000 student signups per quarter',report:'Daily report by 7:30 PM'},
+    pm:{earn:'₦1,200 per CC activated + override earnings',team:'Minimum 5 Campus Coordinators',quota:'10,000 student signups per quarter',report:'Daily report by 8:00 PM'},
+    pfc:{earn:'₦2,500 per PM activated + override earnings',team:'Minimum 5 Project Managers',quota:'50,000 student signups per quarter',report:'Daily report by 9:00 PM'},
   };
   const ri=roleInfo[form.role]||roleInfo.ambassador;
-  const onboardSteps=[
-    {id:'welcome',title:'Welcome! 🎉',icon:'🎉'},
-    {id:'workbook',title:'Workbook',icon:'📖'},
-    {id:'rules',title:'Rules & Regulations',icon:'📋'},
-    {id:'role',title:'Your Role',icon:'🎯'},
-    {id:'earnings',title:'Your Earnings',icon:'💰'},
-    {id:'nda',title:'NDA & Agreement',icon:'✍️'},
-  ];
-  if(done)return(
-    <div style={{minHeight:'100vh',background:'var(--bg)',padding:'16px'}}>
+  if(step==='consent')return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',padding:'20px 16px',overflowY:'auto'}}>
       <div style={{maxWidth:480,margin:'0 auto'}}>
-        {/* Progress */}
-        <div style={{display:'flex',gap:4,marginBottom:20}}>
-          {onboardSteps.map((s,i)=>(
-            <div key={s.id} style={{flex:1,height:4,borderRadius:99,background:i<=onboardStep?'var(--blue)':'#e2e8f0',transition:'background .3s'}}/>
+        <div style={{background:'var(--blue)',borderRadius:20,padding:'20px 20px 16px',marginBottom:12,color:'#fff'}}>
+          <div style={{fontWeight:900,fontSize:18,marginBottom:4}}>📋 RehoVTU Member Agreement</div>
+          <div style={{fontSize:12,opacity:.75}}>Read carefully before registering as {ROLE_LABELS[form.role]}</div>
+        </div>
+
+        {/* WORKBOOK */}
+        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
+          <div style={{fontWeight:800,fontSize:15,color:'var(--blue)',marginBottom:10}}>📘 Role Workbook — {ROLE_LABELS[form.role]}</div>
+          <div style={{fontSize:13,color:'var(--text)',lineHeight:1.7}}>
+            <b>Your Earnings:</b> {ri.earn}<br/>
+            <b>Team Requirement:</b> {ri.team}<br/>
+            <b>Sales Quota:</b> {ri.quota}<br/>
+            <b>Report Deadline:</b> {ri.report}
+          </div>
+        </div>
+
+        {/* RULES & REGULATIONS */}
+        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
+          <div style={{fontWeight:800,fontSize:15,color:'var(--orange)',marginBottom:10}}>📜 Rules & Regulations</div>
+          {[
+            'You must submit your daily activity report before your role deadline every weekday.',
+            'Missing a report incurs an automatic fine deducted from your earnings (₦500–₦3,000 depending on role).',
+            'You are responsible for all members you recruit. Fake signups lead to immediate termination.',
+            'Payment disputes must be raised within 7 days of payout date.',
+            'Members found engaging in fraud or misrepresentation will be removed without payout.',
+            'All earnings are paid monthly after verification by the Founder.',
+          ].map((r,i)=>(
+            <div key={i} style={{display:'flex',gap:8,marginBottom:8,fontSize:13,color:'var(--text)',lineHeight:1.5}}>
+              <span style={{color:'var(--orange)',fontWeight:700,flexShrink:0}}>{i+1}.</span>
+              <span>{r}</span>
+            </div>
           ))}
         </div>
 
-        {/* Member code banner */}
-        <div style={{background:'var(--dark)',borderRadius:14,padding:'14px 16px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,.5)',letterSpacing:1}}>YOUR MEMBER CODE</div>
-            <div style={{fontSize:24,fontWeight:900,color:'var(--gold)',letterSpacing:3}}>{newCode}</div>
-          </div>
-          <div style={{fontSize:10,color:'rgba(255,255,255,.5)',textAlign:'right'}}>
-            <div>Screenshot</div><div>this code!</div>
+        {/* DEDUCTION TABLE */}
+        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
+          <div style={{fontWeight:800,fontSize:15,color:'#c62828',marginBottom:10}}>💸 Fine Schedule</div>
+          <table style={{width:'100%',fontSize:13,borderCollapse:'collapse'}}>
+            <thead><tr style={{background:'#fff3e0'}}>
+              <th style={{padding:'8px 10px',textAlign:'left',borderRadius:'8px 0 0 0'}}>Role</th>
+              <th style={{padding:'8px 10px',textAlign:'right'}}>Daily Miss</th>
+              <th style={{padding:'8px 10px',textAlign:'right',borderRadius:'0 8px 0 0'}}>Weekly Miss</th>
+            </tr></thead>
+            <tbody>
+              {[['Ambassador','₦500','₦500'],['Campus Coordinator','₦1,000','₦1,000'],['Project Manager','₦2,000','₦2,000'],['PFC','₦3,000','₦3,000']].map(([r,d,w])=>(
+                <tr key={r} style={{borderBottom:'1px solid #f5f5f5'}}>
+                  <td style={{padding:'7px 10px'}}>{r}</td>
+                  <td style={{padding:'7px 10px',textAlign:'right',color:'#c62828',fontWeight:700}}>{d}</td>
+                  <td style={{padding:'7px 10px',textAlign:'right',color:'#c62828',fontWeight:700}}>{w}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* NON-DISCLOSURE */}
+        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
+          <div style={{fontWeight:800,fontSize:15,color:'var(--purple)',marginBottom:10}}>🔒 Non-Disclosure Agreement</div>
+          <div style={{fontSize:13,color:'var(--text)',lineHeight:1.7}}>
+            By joining RehoVTU, you agree to keep all internal commission structures, member data, referral networks, business strategies, and Founder contact information strictly confidential. You may not share, reproduce, or disclose any proprietary information to any third party — including competing platforms — during or after your membership. Breach of this NDA may result in legal action and forfeiture of all earnings.
           </div>
         </div>
 
-        {/* STEP 0: Welcome */}
-        {onboardStep===0&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{textAlign:'center',marginBottom:20}}>
-              <div style={{fontSize:52,marginBottom:8}}>🎉</div>
-              <div style={{fontWeight:800,fontSize:22,color:'var(--blue)',marginBottom:8}}>Welcome to RehoVTU!</div>
-              <div style={{fontSize:14,color:'var(--muted)',lineHeight:1.7}}>You're now part of Nigeria's fastest-growing student entrepreneur network. Before you log in, please read through your onboarding materials — it takes just 2 minutes.</div>
-            </div>
-            <div style={{background:'#f0f4ff',borderRadius:12,padding:14,marginBottom:16}}>
-              {onboardSteps.slice(1).map(s=>(
-                <div key={s.id} style={{display:'flex',gap:10,alignItems:'center',marginBottom:8}}>
-                  <span style={{fontSize:18}}>{s.icon}</span>
-                  <span style={{fontSize:13,fontWeight:600,color:'var(--blue)'}}>{s.title}</span>
-                </div>
-              ))}
-            </div>
-            <Btn full onClick={()=>setOnboardStep(1)}>Start Onboarding →</Btn>
-          </div>
-        )}
+        {/* CONSENT CHECKBOX */}
+        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:16,boxShadow:'var(--shadow)'}}>
+          <label style={{display:'flex',gap:12,alignItems:'flex-start',cursor:'pointer'}}>
+            <input type="checkbox" checked={consentChecked} onChange={e=>setConsentChecked(e.target.checked)}
+              style={{marginTop:3,width:18,height:18,cursor:'pointer',accentColor:'var(--blue)'}}/>
+            <span style={{fontSize:13,color:'var(--text)',lineHeight:1.6}}>
+              I have read and understood the Role Workbook, Rules & Regulations, Fine Schedule, and Non-Disclosure Agreement. I agree to abide by all RehoVTU policies.
+            </span>
+          </label>
+        </div>
 
-        {/* STEP 1: Workbook */}
-        {onboardStep===1&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>📖 RehoVTU Workbook</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Your guide to success on this platform</div>
-            {[
-              ['🌐','What is RehoVTU?','RehoVTU is a network-based VTU business that empowers students and non-students across Nigeria to earn passive income by owning their own VTU website. Members sell airtime, data, and bill payments to earn daily income without leaving home.'],
-              ['🔗','How the Chain Works','Sign-ups flow from Ambassadors → Campus Coordinators → State PMs → PFCs → Founder. Each level earns commission on every sign-up under them. Your job is to recruit and manage your downline.'],
-              ['📅','Daily Reports Are Mandatory','Every team member must submit a daily progress report before their deadline. Missing a report results in an automatic deduction from your monthly earnings.'],
-              ['💳','Payment Flow','You earn based on confirmed sign-ups. Payments are processed monthly by the Founder. Ensure your bank details are accurate in your profile.'],
-              ['📱','Tools You Need','WhatsApp for team communication. Instagram/TikTok for marketing. The RehoVTU app for tracking and reporting. Your unique referral link for recruiting.'],
-              ['🎯','Your First Week','In your first 7 days: (1) Screenshot your member code, (2) Share your referral link with at least 10 people, (3) Submit your daily report every day, (4) Join your role WhatsApp group.'],
-            ].map(([ic,t,d])=>(
-              <div key={t} style={{marginBottom:14,paddingBottom:14,borderBottom:'1px solid #f0f0f0'}}>
-                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
-                  <span style={{fontSize:18}}>{ic}</span>
-                  <span style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{t}</span>
-                </div>
-                <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.7,paddingLeft:26}}>{d}</div>
-              </div>
-            ))}
-            <Btn full onClick={()=>setOnboardStep(2)}>Next: Rules & Regulations →</Btn>
-          </div>
-        )}
-
-        {/* STEP 2: Rules & Regulations */}
-        {onboardStep===2&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>📋 Rules & Regulations</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>These rules apply to all team members</div>
-            {[
-              ['✅','Conduct','Treat every team member and customer with respect. No harassment, bullying, or disrespect on any platform.'],
-              ['📅','Reports','Submit your daily, weekly, and monthly reports on time. Missed reports trigger automatic deductions as stated in your role terms.'],
-              ['🔒','Confidentiality','You must not share internal data, pricing strategies, referral structures, or member information with anyone outside RehoVTU.'],
-              ['💰','Honest Dealing','Never charge customers more than the official price. Never misrepresent RehoVTU offerings. Any fraud will result in immediate termination.'],
-              ['📲','Marketing','Only use approved marketing materials. Do not post misleading income claims. Always disclose that earnings depend on individual effort.'],
-              ['🚫','Prohibited','Do not recruit members to competing platforms. Do not share login credentials. Do not manipulate sign-up records.'],
-              ['⚠️','Termination Grounds','Fraudulent sign-ups, zero activity for 30+ days, violation of NDA, or repeated misconduct will result in account termination.'],
-              ['💼','Resignation','If you choose to leave, you must notify the Founder in writing. Your downline will be reassigned. Outstanding payments due will be settled.'],
-            ].map(([ic,t,d])=>(
-              <div key={t} style={{marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0f0f0',display:'flex',gap:10,alignItems:'flex-start'}}>
-                <span style={{fontSize:16,flexShrink:0,marginTop:2}}>{ic}</span>
-                <div>
-                  <div style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{t}</div>
-                  <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginTop:2}}>{d}</div>
-                </div>
-              </div>
-            ))}
-            <Btn full onClick={()=>setOnboardStep(3)}>Next: Your Role →</Btn>
-          </div>
-        )}
-
-        {/* STEP 3: Role Info */}
-        {onboardStep===3&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>🎯 Your Role: {ROLE_LABELS[form.role]}</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Everything you need to know about your position</div>
-            {[
-              ['👥','Team Size Requirement',ri.teamMin,ri.teamDesc],
-              ['📊','How You Earn',ri.earn,'Commission is calculated monthly on all confirmed sign-ups.'],
-              ['🎯','Monthly Target',ri.target,'This is the recommended target to maximize your earnings.'],
-              ['📅','Report Deadline',ri.report,'Missing your daily report triggers an automatic deduction.'],
-            ].map(([ic,t,v,d])=>(
-              <div key={t} style={{marginBottom:14,background:'#f8f9ff',borderRadius:12,padding:'12px 14px'}}>
-                <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
-                  <span style={{fontSize:16}}>{ic}</span>
-                  <span style={{fontWeight:700,fontSize:13,color:'var(--blue)'}}>{t}</span>
-                </div>
-                <div style={{fontSize:14,fontWeight:700,color:'var(--text)',marginBottom:2,paddingLeft:24}}>{v}</div>
-                <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.5,paddingLeft:24}}>{d}</div>
-              </div>
-            ))}
-            <Btn full onClick={()=>setOnboardStep(4)}>Next: Earnings Breakdown →</Btn>
-          </div>
-        )}
-
-        {/* STEP 4: Earnings */}
-        {onboardStep===4&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>💰 Your Earnings Explained</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>How commissions and deductions work</div>
-            <div style={{background:'linear-gradient(135deg,var(--blue),#2563eb)',borderRadius:14,padding:16,marginBottom:16,color:'#fff'}}>
-              <div style={{fontSize:11,opacity:.7,marginBottom:4}}>YOUR EARNING RATE</div>
-              <div style={{fontSize:18,fontWeight:800}}>{ri.earn}</div>
-            </div>
-            {[
-              ['📈','Confirmed Sign-ups','Only sign-ups approved by the Founder count toward your earnings. Ensure every sign-up is legitimate and has paid.'],
-              ['📅','Payment Schedule','Earnings are paid out monthly. The cutoff is the last day of each month. Payments go directly to your registered bank account.'],
-              ['⚠️','Deductions','Missing a daily report deducts '+fmt(DEDUCTIONS[form.role]?.daily||500)+' from your monthly earnings. Deductions happen automatically and are visible in your dashboard.'],
-              ['🎁','Bonuses','The Founder may award bonuses for outstanding performance, exceeding targets, or special achievements. These are added on top of your commissions.'],
-              ['💡','Maximize Your Earnings','Hit your target sign-up numbers. Submit all reports on time. Build a strong downline. Stay active and consistent every month.'],
-            ].map(([ic,t,d])=>(
-              <div key={t} style={{marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0f0f0',display:'flex',gap:10,alignItems:'flex-start'}}>
-                <span style={{fontSize:16,flexShrink:0,marginTop:2}}>{ic}</span>
-                <div>
-                  <div style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{t}</div>
-                  <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginTop:2}}>{d}</div>
-                </div>
-              </div>
-            ))}
-            <Btn full onClick={()=>setOnboardStep(5)}>Next: NDA & Agreement →</Btn>
-          </div>
-        )}
-
-        {/* STEP 5: NDA */}
-        {onboardStep===5&&(
-          <div className="fade-up" style={{background:'#fff',borderRadius:16,padding:24,boxShadow:'var(--shadow)'}}>
-            <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>✍️ Non-Disclosure Agreement</div>
-            <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Please read and accept before proceeding</div>
-            <div style={{background:'#f8f9ff',borderRadius:12,padding:14,marginBottom:16,maxHeight:260,overflowY:'auto',fontSize:12,color:'var(--text)',lineHeight:1.8,border:'1px solid #e2e8f0'}}>
-              <div style={{fontWeight:700,marginBottom:8}}>REHOVTU NON-DISCLOSURE AND CONFIDENTIALITY AGREEMENT</div>
-              <p style={{marginBottom:8}}>This Non-Disclosure Agreement ("Agreement") is entered into between <b>RehoVTU</b> ("the Company") and you, the undersigned team member ("Member"), effective upon your registration date.</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>1. CONFIDENTIAL INFORMATION</div>
-              <p style={{marginBottom:8}}>Member agrees that all information related to RehoVTU operations, including but not limited to: member lists, referral structures, commission rates, business strategies, pricing models, internal processes, customer data, and financial information, constitutes confidential information ("Confidential Information").</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>2. OBLIGATIONS</div>
-              <p style={{marginBottom:8}}>Member agrees to: (a) Keep all Confidential Information strictly confidential; (b) Not disclose Confidential Information to any third party without prior written consent from the Founder; (c) Use Confidential Information only for the purpose of performing duties within RehoVTU; (d) Notify the Founder immediately if any Confidential Information is accidentally disclosed.</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>3. NON-COMPETE</div>
-              <p style={{marginBottom:8}}>During membership and for 6 months after leaving, Member agrees not to recruit RehoVTU members to any competing VTU network marketing operation.</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>4. INTELLECTUAL PROPERTY</div>
-              <p style={{marginBottom:8}}>All marketing materials, systems, and content created under the RehoVTU brand remain the property of RehoVTU. Member may not reproduce or distribute without authorization.</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>5. CONSEQUENCES OF BREACH</div>
-              <p style={{marginBottom:8}}>Breach of this agreement may result in: immediate account termination, forfeiture of unpaid commissions, and legal action if material damages occur.</p>
-              <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>6. ACCEPTANCE</div>
-              <p>By accepting this agreement, Member confirms they have read, understood, and agreed to all terms above. This agreement is legally binding upon acceptance.</p>
-            </div>
-            <div onClick={()=>setNdaAccepted(!ndaAccepted)} style={{display:'flex',gap:10,alignItems:'flex-start',cursor:'pointer',marginBottom:16,padding:'12px 14px',background:ndaAccepted?'#f0fdf4':'#fef9c3',borderRadius:10,border:`1.5px solid ${ndaAccepted?'#86efac':'#fde047'}`}}>
-              <div style={{width:20,height:20,borderRadius:5,border:`2px solid ${ndaAccepted?'#16a34a':'#ca8a04'}`,background:ndaAccepted?'#16a34a':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>
-                {ndaAccepted&&<span style={{color:'#fff',fontSize:13,fontWeight:900}}>✓</span>}
-              </div>
-              <div style={{fontSize:13,lineHeight:1.5,color:'var(--text)'}}>I, <b>{form.name||'the Member'}</b>, have read and agree to the RehoVTU Non-Disclosure and Confidentiality Agreement.</div>
-            </div>
-            <Btn full onClick={()=>{if(!ndaAccepted){alert('Please accept the NDA to proceed.');return;}onNavigate('login');}} style={{background:ndaAccepted?'var(--green2)':'var(--muted)',cursor:ndaAccepted?'pointer':'default'}}>
-              {ndaAccepted?'✅ I Agree — Go to Login →':'Accept NDA to Continue'}
-            </Btn>
-          </div>
-        )}
-
-        <div style={{textAlign:'center',marginTop:16,fontSize:11,color:'var(--muted)'}}>Step {onboardStep+1} of {onboardSteps.length}</div>
+        <Btn full onClick={()=>{if(!consentChecked){alert('Please read and check the agreement above to continue.');return;}setStep('form');}}
+          style={{marginBottom:12}}>
+          I Agree — Continue to Register →
+        </Btn>
+        <div style={{textAlign:'center'}}><button onClick={()=>onNavigate('landing')} style={{background:'none',border:'none',color:'var(--muted)',fontSize:13,cursor:'pointer'}}>← Back</button></div>
       </div>
     </div>
   );
@@ -1044,7 +951,7 @@ function DashHeader({user,onLogout,unreadNotif}){
 // ── REFERRAL LINK INLINE (used on Home tab) ────────────────────────────────
 function RefLinkInline({user}){
   const [copied,setCopied]=useState(false);
-  const BASE='https://rehovtu.github.io';
+  const BASE=window.location.origin;
   const link=`${BASE}/?ref=${user?.code}`;
   const copy=()=>{
     navigator.clipboard?.writeText(link).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});
@@ -2337,331 +2244,6 @@ function MyLinkTab({user}){
   );
 }
 
-// ── PAYMENT NOTIFICATION TREE ──────────────────────────────────────────────
-function PaymentTreeTab({user,users,signups}){
-  const {start}=getMonthRange();
-  const confirmed=signups.filter(s=>s.date>=start&&s.founderApproved!==false);
-
-  // Build chain: for each sign-up find everyone who earns from it
-  // Ambassador → CC (referredBy) → PM → PFC → Founder
-  function getChain(refCode){
-    const amb=Object.values(users).find(u=>u.code===refCode);
-    if(!amb)return[];
-    const cc=amb.referredBy?Object.values(users).find(u=>u.code===amb.referredBy):null;
-    const pm=cc?.referredBy?Object.values(users).find(u=>u.code===cc.referredBy):null;
-    const pfc=pm?.referredBy?Object.values(users).find(u=>u.code===pm.referredBy):null;
-    const founder=Object.values(users).find(u=>u.role==='founder');
-    return[
-      {person:amb,earn:500,role:'ambassador',label:'Ambassador'},
-      cc&&{person:cc,earn:200,role:'cc',label:'Campus Coordinator'},
-      pm&&{person:pm,earn:100,role:'pm',label:'State PM'},
-      pfc&&{person:pfc,earn:50,role:'pfc',label:'PFC'},
-      founder&&{person:founder,earn:100,role:'founder',label:'Founder (platform fee)'},
-    ].filter(Boolean);
-  }
-
-  // Summary: how much each person earns this month
-  const earnerMap={};
-  confirmed.forEach(su=>{
-    const chain=getChain(su.ref);
-    chain.forEach(({person,earn})=>{
-      if(!person)return;
-      const k=person.code||person.id;
-      if(!earnerMap[k])earnerMap[k]={person,total:0,count:0};
-      earnerMap[k].total+=earn;
-      earnerMap[k].count+=1;
-    });
-  });
-
-  // Show the user's own payment tree position
-  const myChain=user.role!=='founder'?getChain(
-    user.role==='ambassador'?user.code:
-    user.role==='cc'?(Object.values(users).find(u=>u.referredBy===user.code&&u.role==='ambassador')?.code||''):''
-  ):[];
-
-  const ROLE_EARN={ambassador:500,cc:200,pm:100,pfc:50};
-  const myCount=user.role==='ambassador'?confirmed.filter(s=>s.ref===user.code).length:
-    user.role==='cc'?confirmed.filter(s=>Object.values(users).filter(u=>u.referredBy===user.code&&u.role==='ambassador').map(a=>a.code).includes(s.ref)).length:
-    user.role==='pm'?confirmed.filter(s=>{
-      const ccs=Object.values(users).filter(u=>u.referredBy===user.code&&u.role==='cc').map(c=>c.code);
-      const ambs=Object.values(users).filter(u=>ccs.includes(u.referredBy)&&u.role==='ambassador').map(a=>a.code);
-      return ambs.includes(s.ref);
-    }).length:
-    user.role==='pfc'?confirmed.filter(s=>{
-      const pms=Object.values(users).filter(u=>u.referredBy===user.code&&u.role==='pm').map(p=>p.code);
-      const ccs=Object.values(users).filter(u=>pms.includes(u.referredBy)&&u.role==='cc').map(c=>c.code);
-      const ambs=Object.values(users).filter(u=>ccs.includes(u.referredBy)&&u.role==='ambassador').map(a=>a.code);
-      return ambs.includes(s.ref);
-    }).length:0;
-
-  const myEarn=(ROLE_EARN[user.role]||0)*myCount;
-  const myDed=(user.deductions||[]).reduce((a,d)=>a+(d.amount||0),0);
-  const myBon=(user.bonuses||[]).reduce((a,b)=>a+(b.amount||0),0);
-  const myNet=myEarn-myDed+myBon;
-
-  return(
-    <div style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:16}}>
-      {/* My Payment Summary */}
-      <div style={{background:'linear-gradient(135deg,var(--blue),#1e40af)',borderRadius:14,padding:'18px',color:'#fff'}}>
-        <div style={{fontSize:11,opacity:.7,letterSpacing:1,marginBottom:8}}>YOUR PAYMENT THIS MONTH</div>
-        <div style={{fontSize:32,fontWeight:900,color:'var(--gold)',marginBottom:4}}>{fmt(Math.max(0,myNet))}</div>
-        <div style={{fontSize:12,opacity:.8}}>{myCount} confirmed sign-up{myCount!==1?'s':''} × {fmt(ROLE_EARN[user.role]||0)} = {fmt(myEarn)}</div>
-        {myDed>0&&<div style={{fontSize:12,color:'#fca5a5',marginTop:2}}>Deductions: -{fmt(myDed)}</div>}
-        {myBon>0&&<div style={{fontSize:12,color:'#86efac',marginTop:2}}>Bonus: +{fmt(myBon)}</div>}
-        <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid rgba(255,255,255,.2)',fontSize:12,opacity:.75}}>
-          Payments processed monthly by the Founder · Must have valid bank details
-        </div>
-      </div>
-
-      {/* How payments flow */}
-      <div style={{background:'#fff',borderRadius:14,padding:'16px',boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>💸 How Payment Flows Per Sign-up</div>
-        {[
-          {role:'ambassador',emoji:'🟢',label:'Ambassador',earn:'₦500',desc:'Gets ₦500 for each of first 50; ₦700 after'},
-          {role:'cc',emoji:'🟠',label:'Campus Coordinator',earn:'₦200',desc:'Gets ₦200 per sign-up under their ambassadors'},
-          {role:'pm',emoji:'🟣',label:'State Project Manager',earn:'₦100',desc:'Gets ₦100 per sign-up in their state'},
-          {role:'pfc',emoji:'🔵',label:'Project & Finance Coord.',earn:'₦50',desc:'Gets ₦50 per sign-up in their portfolio'},
-          {role:'founder',emoji:'⚫',label:'Founder (Platform Fee)',earn:'₦100',desc:'Platform fee — covers operations & infrastructure'},
-        ].map(({role,emoji,label,earn,desc},i)=>(
-          <div key={role}>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0'}}>
-              <div style={{width:36,height:36,borderRadius:'50%',background:ROLE_BG[role]||'#f0f0f0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{emoji}</div>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:13,color:ROLE_COLORS[role]||'var(--text)'}}>{label}</div>
-                <div style={{fontSize:11,color:'var(--muted)',lineHeight:1.4}}>{desc}</div>
-              </div>
-              <div style={{fontWeight:800,fontSize:16,color:ROLE_COLORS[role]||'var(--text)'}}>{earn}</div>
-            </div>
-            {i<4&&<div style={{marginLeft:18,borderLeft:'2px dashed #dde3f0',height:12}}/>}
-          </div>
-        ))}
-        <div style={{background:'#f0fdf4',borderRadius:10,padding:'10px 12px',marginTop:8,border:'1px solid #86efac'}}>
-          <div style={{fontSize:12,fontWeight:700,color:'#166534',marginBottom:2}}>📊 Total Per Sign-up</div>
-          <div style={{fontSize:13,color:'#166534'}}>₦500+₦200+₦100+₦50+₦100 = <b>₦950 total distributed</b></div>
-          <div style={{fontSize:11,color:'#6b7280',marginTop:2}}>Customer pays ₦2,000 · ₦1,050 goes to operations & site building</div>
-        </div>
-      </div>
-
-      {/* Payment Schedule */}
-      <div style={{background:'#fff',borderRadius:14,padding:'16px',boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📅 Payment Schedule</div>
-        {[
-          ['When','Monthly — last day of each month'],
-          ['Cutoff','All confirmed sign-ups by end of month'],
-          ['Method','Direct bank transfer to your registered account'],
-          ['Deductions','Missed daily reports auto-deducted before payout'],
-          ['Bonuses','Special bonuses added by Founder for top performers'],
-          ['Disputes','Contact Founder within 3 days of payment date'],
-        ].map(([k,v])=>(
-          <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border)',fontSize:13}}>
-            <span style={{color:'var(--muted)',fontWeight:600}}>{k}</span>
-            <span style={{fontWeight:500,maxWidth:'60%',textAlign:'right'}}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Bank details reminder */}
-      <div style={{background:'#fef3c7',borderRadius:14,padding:'16px',border:'1.5px solid #fcd34d'}}>
-        <div style={{fontWeight:700,fontSize:13,color:'#92400e',marginBottom:8}}>⚠️ Ensure Your Bank Details Are Correct</div>
-        <div style={{fontSize:13,color:'#92400e',lineHeight:1.6}}>
-          Payments go directly to your registered bank account. If your details are wrong, you will miss your payment. Update them in your <b>Account</b> tab now.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── ONBOARDING TAB (dashboard version — always accessible) ─────────────────
-function OnboardingTab({user}){
-  const [step,setStep]=useState(0); // 0=menu, 1=workbook, 2=rules, 3=role, 4=earnings, 5=nda
-  const roleInfo={
-    ambassador:{teamMin:'No team required — work solo',teamDesc:'Focus on getting sign-ups directly.',earn:'₦500 per sign-up (first 50), then ₦700 per sign-up after 50',target:'100 sign-ups = ₦60,000/month',report:'Daily by 7:00 PM'},
-    cc:{teamMin:'Minimum 5 Ambassadors',teamDesc:'Recruit and manage at least 5 Ambassadors under you.',earn:'₦200 per sign-up from your Ambassadors',target:'2,000 sign-ups = ₦400,000/month',report:'Daily by 7:30 PM'},
-    pm:{teamMin:'Minimum 3 Campus Coordinators',teamDesc:'Manage at least 3 CCs, each with their own ambassadors.',earn:'₦100 per sign-up across your state',target:'10,000 sign-ups = ₦2,000,000/month',report:'Daily by 8:00 PM'},
-    pfc:{teamMin:'Minimum 2 State Project Managers',teamDesc:'Oversee PMs and their entire downline chains.',earn:'₦50 per sign-up across your full portfolio',target:'50,000 sign-ups = ₦5,000,000/month',report:'Daily by 9:00 PM'},
-  };
-  const ri=roleInfo[user.role]||roleInfo.ambassador;
-  const dedAmt=DEDUCTIONS[user.role]?.daily||500;
-
-  const sections=[
-    {id:1,icon:'📖',title:'Workbook'},
-    {id:2,icon:'📋',title:'Rules & Regulations'},
-    {id:3,icon:'🎯',title:'Your Role'},
-    {id:4,icon:'💰',title:'Earnings Breakdown'},
-    {id:5,icon:'✍️',title:'NDA & Agreement'},
-  ];
-
-  if(step===0){
-    return(
-      <div style={{display:'flex',flexDirection:'column',gap:10,paddingBottom:16}}>
-        <div style={{background:'linear-gradient(135deg,var(--blue),#1e40af)',borderRadius:14,padding:'18px',color:'#fff',textAlign:'center'}}>
-          <div style={{fontSize:32,marginBottom:8}}>📚</div>
-          <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>Onboarding Materials</div>
-          <div style={{fontSize:13,opacity:.8,lineHeight:1.6}}>Everything you need to know about your role, rules, and earnings. Tap any section to read.</div>
-        </div>
-        {sections.map(s=>(
-          <div key={s.id} onClick={()=>setStep(s.id)}
-            style={{background:'#fff',borderRadius:12,padding:'14px 16px',boxShadow:'var(--shadow)',display:'flex',alignItems:'center',gap:12,cursor:'pointer'}}>
-            <span style={{fontSize:24}}>{s.icon}</span>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14}}>{s.title}</div>
-              <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>
-                {s.id===1?'Your guide to success on this platform':
-                 s.id===2?'Rules that apply to all team members':
-                 s.id===3?`Your role as ${ROLE_LABELS[user.role]}`:
-                 s.id===4?'How commissions & deductions work':
-                 'Non-disclosure & confidentiality terms'}
-              </div>
-            </div>
-            <span style={{color:'var(--muted)',fontSize:18}}>›</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const Back=()=>(<button onClick={()=>setStep(0)} style={{background:'none',border:'none',color:'var(--blue)',fontWeight:700,fontSize:14,cursor:'pointer',marginBottom:12,display:'block'}}>← Back to Onboarding</button>);
-
-  if(step===1) return(
-    <div style={{paddingBottom:16}}>
-      <Back/>
-      <div style={{background:'#fff',borderRadius:14,padding:20,boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>📖 RehoVTU Workbook</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Your guide to success on this platform</div>
-        {[
-          ['🌐','What is RehoVTU?','RehoVTU is a network-based VTU business that empowers students and non-students across Nigeria to earn passive income by owning their own VTU website. Members sell airtime, data, and bill payments to earn daily income without leaving home.'],
-          ['🔗','How the Chain Works','Sign-ups flow from Ambassadors → Campus Coordinators → State PMs → PFCs → Founder. Each level earns commission on every sign-up under them. Your job is to recruit and manage your downline.'],
-          ['📅','Daily Reports Are Mandatory','Every team member must submit a daily progress report before their deadline. Missing a report results in an automatic deduction of '+fmt(dedAmt)+' from your monthly earnings.'],
-          ['💳','Payment Flow','You earn based on confirmed sign-ups. Payments are processed monthly by the Founder. Ensure your bank details are accurate in your profile.'],
-          ['📱','Tools You Need','WhatsApp for team communication. Instagram/TikTok for marketing. The RehoVTU app for tracking and reporting. Your unique referral link for recruiting.'],
-          ['🎯','Your First Week','In your first 7 days: (1) Screenshot your member code, (2) Share your referral link with at least 10 people, (3) Submit your daily report every day, (4) Join your role WhatsApp group.'],
-        ].map(([ic,t,d])=>(
-          <div key={t} style={{marginBottom:14,paddingBottom:14,borderBottom:'1px solid #f0f0f0'}}>
-            <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
-              <span style={{fontSize:18}}>{ic}</span>
-              <span style={{fontWeight:700,fontSize:13}}>{t}</span>
-            </div>
-            <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.7,paddingLeft:26}}>{d}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if(step===2) return(
-    <div style={{paddingBottom:16}}>
-      <Back/>
-      <div style={{background:'#fff',borderRadius:14,padding:20,boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>📋 Rules & Regulations</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>These rules apply to all team members</div>
-        {[
-          ['✅','Conduct','Treat every team member and customer with respect. No harassment, bullying, or disrespect on any platform.'],
-          ['📅','Reports','Submit your daily, weekly, and monthly reports on time. Missed reports trigger automatic deductions as stated in your role terms.'],
-          ['🔒','Confidentiality','You must not share internal data, pricing strategies, referral structures, or member information with anyone outside RehoVTU.'],
-          ['💰','Honest Dealing','Never charge customers more than the official price. Never misrepresent RehoVTU offerings. Any fraud will result in immediate termination.'],
-          ['📲','Marketing','Only use approved marketing materials. Do not post misleading income claims. Always disclose that earnings depend on individual effort.'],
-          ['🚫','Prohibited','Do not recruit members to competing platforms. Do not share login credentials. Do not manipulate sign-up records.'],
-          ['⚠️','Termination Grounds','Fraudulent sign-ups, zero activity for 30+ days, violation of NDA, or repeated misconduct will result in account termination.'],
-          ['💼','Resignation','If you choose to leave, you must notify the Founder in writing. Your downline will be reassigned. Outstanding payments due will be settled.'],
-        ].map(([ic,t,d])=>(
-          <div key={t} style={{marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0f0f0',display:'flex',gap:10,alignItems:'flex-start'}}>
-            <span style={{fontSize:16,flexShrink:0,marginTop:2}}>{ic}</span>
-            <div>
-              <div style={{fontWeight:700,fontSize:13}}>{t}</div>
-              <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginTop:2}}>{d}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if(step===3) return(
-    <div style={{paddingBottom:16}}>
-      <Back/>
-      <div style={{background:'#fff',borderRadius:14,padding:20,boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>🎯 Your Role: {ROLE_LABELS[user.role]}</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Everything you need to know about your position</div>
-        {[
-          ['👥','Team Size Requirement',ri.teamMin,ri.teamDesc],
-          ['📊','How You Earn',ri.earn,'Commission is calculated monthly on all confirmed sign-ups.'],
-          ['🎯','Monthly Target',ri.target,'This is the recommended target to maximize your earnings.'],
-          ['📅','Report Deadline',ri.report,'Missing your daily report triggers an automatic deduction.'],
-        ].map(([ic,t,v,d])=>(
-          <div key={t} style={{marginBottom:14,background:'#f8f9ff',borderRadius:12,padding:'12px 14px'}}>
-            <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
-              <span style={{fontSize:16}}>{ic}</span>
-              <span style={{fontWeight:700,fontSize:13,color:'var(--blue)'}}>{t}</span>
-            </div>
-            <div style={{fontSize:14,fontWeight:700,marginBottom:2,paddingLeft:24}}>{v}</div>
-            <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.5,paddingLeft:24}}>{d}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if(step===4) return(
-    <div style={{paddingBottom:16}}>
-      <Back/>
-      <div style={{background:'#fff',borderRadius:14,padding:20,boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>💰 Earnings Explained</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>How commissions and deductions work</div>
-        <div style={{background:'linear-gradient(135deg,var(--blue),#2563eb)',borderRadius:14,padding:16,marginBottom:16,color:'#fff'}}>
-          <div style={{fontSize:11,opacity:.7,marginBottom:4}}>YOUR EARNING RATE</div>
-          <div style={{fontSize:18,fontWeight:800}}>{ri.earn}</div>
-        </div>
-        {[
-          ['📈','Confirmed Sign-ups','Only sign-ups approved by the Founder count toward your earnings. Ensure every sign-up is legitimate and has paid.'],
-          ['📅','Payment Schedule','Earnings are paid out monthly. The cutoff is the last day of each month. Payments go directly to your registered bank account.'],
-          ['⚠️','Deductions','Missing a daily report deducts '+fmt(dedAmt)+' from your monthly earnings. Deductions happen automatically and are visible in your Payments tab.'],
-          ['🎁','Bonuses','The Founder may award bonuses for outstanding performance, exceeding targets, or special achievements.'],
-          ['💡','Maximize Your Earnings','Hit your target sign-up numbers. Submit all reports on time. Build a strong downline. Stay active and consistent every month.'],
-        ].map(([ic,t,d])=>(
-          <div key={t} style={{marginBottom:12,paddingBottom:12,borderBottom:'1px solid #f0f0f0',display:'flex',gap:10,alignItems:'flex-start'}}>
-            <span style={{fontSize:16,flexShrink:0,marginTop:2}}>{ic}</span>
-            <div>
-              <div style={{fontWeight:700,fontSize:13}}>{t}</div>
-              <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginTop:2}}>{d}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  if(step===5) return(
-    <div style={{paddingBottom:16}}>
-      <Back/>
-      <div style={{background:'#fff',borderRadius:14,padding:20,boxShadow:'var(--shadow)'}}>
-        <div style={{fontWeight:800,fontSize:18,color:'var(--blue)',marginBottom:4}}>✍️ Non-Disclosure Agreement</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>Your confidentiality obligations as a RehoVTU team member</div>
-        <div style={{background:'#f8f9ff',borderRadius:12,padding:14,maxHeight:360,overflowY:'auto',fontSize:12,color:'var(--text)',lineHeight:1.8,border:'1px solid #e2e8f0'}}>
-          <div style={{fontWeight:700,marginBottom:8}}>REHOVTU NON-DISCLOSURE AND CONFIDENTIALITY AGREEMENT</div>
-          <p style={{marginBottom:8}}>This Non-Disclosure Agreement ("Agreement") is between <b>RehoVTU</b> ("the Company") and you, the team member ("Member"), effective from your registration date.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>1. CONFIDENTIAL INFORMATION</div>
-          <p style={{marginBottom:8}}>Member agrees that all information related to RehoVTU operations — including member lists, referral structures, commission rates, business strategies, pricing models, internal processes, customer data, and financial information — constitutes confidential information.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>2. OBLIGATIONS</div>
-          <p style={{marginBottom:8}}>Member agrees to: (a) Keep all Confidential Information strictly confidential; (b) Not disclose to any third party without prior written consent from the Founder; (c) Use information only for performing duties within RehoVTU; (d) Notify the Founder immediately if any information is accidentally disclosed.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>3. NON-COMPETE</div>
-          <p style={{marginBottom:8}}>During membership and for 6 months after leaving, Member agrees not to recruit RehoVTU members to any competing VTU network marketing operation.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>4. INTELLECTUAL PROPERTY</div>
-          <p style={{marginBottom:8}}>All marketing materials, systems, and content created under the RehoVTU brand remain the property of RehoVTU. Member may not reproduce or distribute without authorization.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>5. CONSEQUENCES OF BREACH</div>
-          <p style={{marginBottom:8}}>Breach may result in: immediate account termination, forfeiture of unpaid commissions, and legal action if material damages occur.</p>
-          <div style={{fontWeight:700,marginTop:12,marginBottom:4}}>6. ACCEPTANCE</div>
-          <p>By registering with RehoVTU and using this platform, Member confirms they have read, understood, and agreed to all terms above. This agreement is legally binding upon use of the platform.</p>
-        </div>
-        <div style={{background:'#f0fdf4',borderRadius:10,padding:'12px 14px',marginTop:14,border:'1px solid #86efac',fontSize:13,color:'#166534',fontWeight:600}}>
-          ✅ You accepted this agreement upon registration. Your account is bound by these terms.
-        </div>
-      </div>
-    </div>
-  );
-
-  return null;
-}
-
 
 // ── ROLE-SPECIFIC TABS ─────────────────────────────────────────────────────
 function SignupsTab({user,signups}){
@@ -2872,13 +2454,23 @@ function RecTab({user,users,saveUsers,pushNotif}){
   );
 }
 
-function ConfirmTab({signups,saveSignups,pushNotif}){
+function ConfirmTab({signups,saveSignups,pushNotif,users,user}){
   const pending=signups.filter(s=>s.pfcStatus==='Pending');
   const confirm=async id=>{
     const ns=signups.map(s=>s.id===id?{...s,pfcStatus:'Confirmed'}:s);
     await saveSignups(ns);
     const su=signups.find(s=>s.id===id);
-    if(su?.ref)await pushNotif(su.ref,`Sign-up from ${su.name} confirmed!`);
+    if(!su)return;
+    // Full upline payment notification tree
+    const notifyUp=async(code,depth=0)=>{
+      if(!code||depth>5)return;
+      const m=(users||{})[code];
+      if(!m)return;
+      await pushNotif(code,`💰 Payment confirmed: ${su.name} joined via your network!`);
+      if(m.ref)await notifyUp(m.ref,depth+1);
+    };
+    if(su.ref)await notifyUp(su.ref);
+    await pushNotif('FOUNDER',`💰 Payment confirmed: ${su.name}. PFC: ${user?.name||''}. Ref chain notified.`);
   };
   const reject=async id=>{await saveSignups(signups.map(s=>s.id===id?{...s,pfcStatus:'Rejected'}:s));};
   return(
@@ -3052,12 +2644,25 @@ function FounderPanel({appState}){
   };
   const rejectMember=async id=>{const nu={...users};delete nu[id];await saveUsers(nu);};
 
-  // ── APPROVE SIGN-UP ──
+  // ── APPROVE SIGN-UP + PAYMENT NOTIFICATION TREE ──
   const approveSignup=async id=>{
     const ns=signups.map(s=>s.id===id?{...s,founderApproved:true,pfcStatus:'Confirmed'}:s);
     await saveSignups(ns);
     const su=signups.find(s=>s.id===id);
-    if(su?.ref)await pushNotif(su.ref,`✅ Sign-up from ${su.name} approved by Founder!`);
+    if(!su) return;
+    // Notify the full upline tree of the confirmed payment
+    const notifyChain=async(memberCode, depth=0)=>{
+      if(!memberCode||depth>5) return;
+      const member=users[memberCode];
+      if(!member) return;
+      const roleLabel=ROLE_LABELS[member.role]||member.role;
+      await pushNotif(memberCode,`💰 Payment confirmed: ${su.name} joined via your network. Your earnings have been updated.`);
+      // Walk up the tree
+      if(member.ref) await notifyChain(member.ref, depth+1);
+    };
+    if(su.ref) await notifyChain(su.ref);
+    // Also notify Founder
+    await pushNotif('FOUNDER',`💰 Payment confirmed: ${su.name} signed up. Referred by: ${su.ref||'Direct'}.`);
   };
   const rejectSignup=async id=>{
     const ns=signups.map(s=>s.id===id?{...s,founderApproved:false,pfcStatus:'Rejected'}:s);
@@ -3716,8 +3321,6 @@ function MemberDashboard({user,appState,onLogout}){
   const base=[
     {id:'home',label:'Home'},
     {id:'link',label:'My Link'},
-    {id:'payments',label:'💸 Payments'},
-    {id:'onboarding',label:'📚 Guide'},
     {id:'meeting',label:'📹 Meet'},
     {id:'group',label:'Group'},
     {id:'dm',label:'DMs',badge:unreadDM},
@@ -3742,8 +3345,6 @@ function MemberDashboard({user,appState,onLogout}){
       <div style={{padding:'12px 12px 80px'}} className="fade-up">
         {tab==='home'&&<HomeTab user={user} users={users} signups={signups} reports={reports} settings={settings}/>}
         {tab==='link'&&<MyLinkTab user={user}/>}
-        {tab==='payments'&&<PaymentTreeTab user={user} users={users} signups={signups}/>}
-        {tab==='onboarding'&&<OnboardingTab user={user}/>}
         {tab==='meeting'&&<MeetingTab user={user}/>}
         {tab==='group'&&<GrpTab user={user} grp={grp} saveGrp={saveGrp} users={users}/>}
         {tab==='dm'&&<DMTab user={user} users={users} dms={dms} saveDms={saveDms}/>}
@@ -3755,7 +3356,7 @@ function MemberDashboard({user,appState,onLogout}){
         {tab==='team'&&<TeamTab user={user} users={users} signups={signups} reports={reports}/>}
         {tab==='rec'&&<RecTab user={user} users={users} saveUsers={saveUsers} pushNotif={pushNotif}/>}
         {tab==='build'&&<BuildTab users={users} saveUsers={saveUsers} pushNotif={pushNotif}/>}
-        {tab==='confirm'&&<ConfirmTab signups={signups} saveSignups={saveSignups} pushNotif={pushNotif}/>}
+        {tab==='confirm'&&<ConfirmTab signups={signups} saveSignups={saveSignups} pushNotif={pushNotif} users={users} user={user}/>}
         {tab==='allsu'&&<AllSignupsTab signups={signups} saveSignups={saveSignups}/>}
       </div>
     </div>
@@ -3889,44 +3490,32 @@ function useAppState(){
     }
   },[users]);
 
-  // AUTO-DEDUCTION: apply missed daily report deductions on login
-  useEffect(()=>{
-    if(!user||user.role==='founder'||!users||!reports)return;
-    if(!user.code)return;
-    const role=user.role;
-    const dedAmt=DEDUCTIONS[role]?.daily||0;
-    if(!dedAmt)return;
-    const memberReports=reports.filter(r=>r.userCode===user.code&&r.type==='daily');
-    const submittedDates=new Set(memberReports.map(r=>r.date));
-    const joinDate=new Date(user.joined||TODAY);
-    const today=new Date(TODAY);
-    const existingDedDates=new Set((user.deductions||[]).filter(d=>d.reason&&d.reason.includes('Missed daily report')).map(d=>d.forDate||''));
-    const toDeduct=[];
-    const cur=new Date(joinDate);
-    while(cur<today){
-      const ds=cur.toISOString().split('T')[0];
-      if(cur.getDay()!==0&&!submittedDates.has(ds)&&!existingDedDates.has(ds)){
-        toDeduct.push(ds);
-      }
-      cur.setDate(cur.getDate()+1);
-    }
-    if(toDeduct.length===0)return;
-    const currentUser=users[user.code];
-    if(!currentUser)return;
-    const newDeds=[...(currentUser.deductions||[]),...toDeduct.map(d=>({
-      date:TODAY,forDate:d,amount:dedAmt,
-      reason:`Missed daily report — ${d}`
-    }))];
-    const nu={...users,[user.code]:{...currentUser,deductions:newDeds}};
-    const notifMsg=`⚠️ Auto-deduction applied: ${toDeduct.length} missed daily report${toDeduct.length>1?'s':''} (-${fmt(dedAmt*toDeduct.length)})`;
-    nu[user.code].notifications=[{msg:notifMsg,time:new Date().toISOString(),read:false},...(nu[user.code].notifications||[])];
-    saveUsers(nu);
-    if(user.email){
-      const{subject:dSubj,html:dHtml}=EMAILS.deduction(user.name,dedAmt*toDeduct.length,`${toDeduct.length} missed daily report(s)`,0);
-      sendEmail(user.email,user.name,dSubj,dHtml);
-    }
-  },[user?.code,user?.role,reports]);
 
+  // ── AUTO-DEDUCTION: missed daily reports (runs after 22:00) ─
+  useEffect(()=>{
+    if(!Object.keys(users).length||!reports.length) return;
+    const now=new Date();
+    const todayStr=now.toISOString().split('T')[0];
+    if(now.getDay()===0) return; // skip Sunday
+    if(now.getHours()<22) return; // only after 22:00
+    const dedKey='rv_ded_'+todayStr;
+    if(localStorage.getItem(dedKey)) return;
+    const members=Object.values(users).filter(u=>u.approved&&u.id!=='FOUNDER'&&!u.resigned&&u.role!=='founder');
+    let changed=false;
+    const nu={...users};
+    members.forEach(u=>{
+      if(!DEDUCTIONS[u.role]) return;
+      const submitted=reports.some(r=>r.userCode===u.code&&r.date===todayStr&&r.type==='daily');
+      if(!submitted){
+        const ded=DEDUCTIONS[u.role].daily||500;
+        const entry={amount:ded,reason:`Missed daily report — ${todayStr}`,date:todayStr,type:'auto'};
+        nu[u.code]={...nu[u.code],deductions:[...(nu[u.code].deductions||[]),entry]};
+        nu[u.code].notifications=[{msg:`⚠️ ₦${ded.toLocaleString()} deducted: missed daily report on ${todayStr}.`,time:new Date().toISOString(),read:false},...(nu[u.code].notifications||[])];
+        changed=true;
+      }
+    });
+    if(changed){saveUsers(nu);localStorage.setItem(dedKey,'1');}
+  },[users,reports]);
   return{screen,setScreen,user,setUser,users,saveUsers,signups,saveSignups,settings,saveSettings,broadcasts,saveBroadcasts,dms,saveDms,grp,saveGrp,reports,saveReports,pushNotif};
 }
 
@@ -3953,138 +3542,33 @@ function App(){
 
 // ── PWA INSTALL PROMPT ─────────────────────────────────────────────────────
 let _installPrompt = null;
-
-// Intercept the browser's native install prompt ASAP
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _installPrompt = e;
+  // Show install button immediately when prompt is available
+  document.getElementById('install-btn-wrap')&&(document.getElementById('install-btn-wrap').style.display='block');
 });
 
-window.addEventListener('appinstalled', () => {
-  _installPrompt = null;
+window.addEventListener('appinstalled',()=>{
+  _installPrompt=null;
 });
 
 function triggerInstall() {
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isAndroid = /android/i.test(navigator.userAgent);
-
-  // ── Android / Chrome: native install prompt ──────────────────────────────
   if (_installPrompt) {
     _installPrompt.prompt();
-    _installPrompt.userChoice.then(result => {
-      _installPrompt = null;
-      if (result.outcome !== 'accepted') {
-        // User dismissed — fall through to manual instructions
-        if (isAndroid) showAndroidInstructions();
-      }
-    });
-    return;
+    _installPrompt.userChoice.then(()=>{ _installPrompt = null; });
+  } else {
+    // Detect device
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid=/android/i.test(navigator.userAgent);
+    if(isIOS){
+      alert('📱 Install on iPhone/iPad:\n\n1. Tap the Share button at the bottom (the box with arrow ↑)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" — done!');
+    } else if(isAndroid){
+      alert('📱 Install on Android:\n\n1. Tap the 3 dots menu ⋮ at the top right of your browser\n2. Tap "Add to Home screen" or "Install app"\n3. Tap "Install" — done!\n\nIf you don\'t see it, try opening the site in Chrome browser.');
+    } else {
+      alert('💻 Install on Desktop:\n\nLook for the install icon (⊕) in your browser address bar and click it.');
+    }
   }
-
-  // ── iOS Safari: show step-by-step overlay ────────────────────────────────
-  if (isIOS) {
-    showIOSInstructions();
-    return;
-  }
-
-  // ── Android but prompt not yet ready (e.g. Firefox, Samsung Browser) ─────
-  if (isAndroid) {
-    showAndroidInstructions();
-    return;
-  }
-
-  // ── Desktop ───────────────────────────────────────────────────────────────
-  alert('💻 Install on Desktop:\n\nLook for the ⊕ install icon in your browser\'s address bar and click it.\n\nOr open this site in Chrome and try again.');
-}
-
-function showIOSInstructions() {
-  // Create a beautiful overlay with step-by-step iOS instructions
-  const overlay = document.createElement('div');
-  overlay.id = 'ios-install-overlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:rgba(10,20,60,.7);z-index:9999;
-    display:flex;align-items:flex-end;justify-content:center;
-    animation:fadeIn .25s ease;
-  `;
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(0,0,0,.25);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <div style="font-weight:800;font-size:18px;color:#1A3A8F;">📲 Install RehoVTU</div>
-        <button onclick="document.getElementById('ios-install-overlay').remove()"
-          style="background:none;border:none;font-size:26px;cursor:pointer;color:#6b7280;line-height:1;">×</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;background:#f0f2f8;border-radius:14px;padding:14px;margin-bottom:20px;">
-        <img src="/icon-192.png" style="width:56px;height:56px;border-radius:14px;flex-shrink:0;" alt="RehoVTU"/>
-        <div>
-          <div style="font-weight:800;font-size:16px;color:#0f1b3d;">RehoVTU</div>
-          <div style="font-size:13px;color:#6b7280;">rehovtu.github.io</div>
-        </div>
-      </div>
-      <div style="font-size:14px;color:#374151;margin-bottom:16px;font-weight:600;">Follow these 3 steps to add to your Home Screen:</div>
-      ${[
-        ['1','Tap the Share button','The box with an arrow ↑ at the bottom of Safari'],
-        ['2','Scroll & tap "Add to Home Screen"','Look for it in the share menu list'],
-        ['3','Tap "Add" to confirm','The app will appear on your home screen with the RehoVTU icon'],
-      ].map(([n,t,d])=>`
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">
-          <div style="width:30px;height:30px;border-radius:50%;background:#1A3A8F;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${n}</div>
-          <div>
-            <div style="font-weight:700;font-size:14px;color:#0f1b3d;">${t}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">${d}</div>
-          </div>
-        </div>
-      `).join('')}
-      <div style="text-align:center;margin-top:8px;">
-        <div style="font-size:12px;color:#9ca3af;">↓ The Share button looks like this ↓</div>
-        <div style="font-size:36px;margin-top:4px;">⬆️</div>
-      </div>
-    </div>
-  `;
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
-}
-
-function showAndroidInstructions() {
-  const overlay = document.createElement('div');
-  overlay.id = 'android-install-overlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:rgba(10,20,60,.7);z-index:9999;
-    display:flex;align-items:flex-end;justify-content:center;
-  `;
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-shadow:0 -8px 40px rgba(0,0,0,.25);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <div style="font-weight:800;font-size:18px;color:#1A3A8F;">📲 Install RehoVTU</div>
-        <button onclick="document.getElementById('android-install-overlay').remove()"
-          style="background:none;border:none;font-size:26px;cursor:pointer;color:#6b7280;line-height:1;">×</button>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;background:#f0f2f8;border-radius:14px;padding:14px;margin-bottom:20px;">
-        <img src="/icon-192.png" style="width:56px;height:56px;border-radius:14px;flex-shrink:0;" alt="RehoVTU"/>
-        <div>
-          <div style="font-weight:800;font-size:16px;color:#0f1b3d;">RehoVTU</div>
-          <div style="font-size:13px;color:#6b7280;">rehovtu.github.io</div>
-        </div>
-      </div>
-      <div style="font-size:14px;color:#374151;margin-bottom:16px;font-weight:600;">Add to your Home Screen in 2 steps:</div>
-      ${[
-        ['1','Tap the 3-dot menu ⋮','Top-right corner of your Chrome browser'],
-        ['2','Tap "Add to Home screen"','Then tap "Add" or "Install" — done!'],
-      ].map(([n,t,d])=>`
-        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">
-          <div style="width:30px;height:30px;border-radius:50%;background:#1A3A8F;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${n}</div>
-          <div>
-            <div style="font-weight:700;font-size:14px;color:#0f1b3d;">${t}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">${d}</div>
-          </div>
-        </div>
-      `).join('')}
-      <div style="background:#dbeafe;border-radius:10px;padding:10px 14px;font-size:12px;color:#1e40af;margin-top:8px;">
-        💡 For best results, open this site in <b>Google Chrome</b>. Chrome will often show an automatic install popup.
-      </div>
-    </div>
-  `;
-  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
-  document.body.appendChild(overlay);
 }
 
 ReactDOM.render(<App/>,document.getElementById('root'));
