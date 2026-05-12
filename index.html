@@ -766,95 +766,34 @@ function TeamReg({users,saveUsers,onNavigate}){
       </div>
     </div>
   );
-  const roleInfo={
-    ambassador:{earn:'₦500 per student signup (slots 1-50), ₦700 per signup above 50',team:'No minimum team size',quota:'100 student signups per quarter',report:'Daily report by 7:00 PM'},
-    cc:{earn:'₦800 commission per ambassador activated + override earnings',team:'Minimum 5 Ambassadors',quota:'2,000 student signups per quarter',report:'Daily report by 7:30 PM'},
-    pm:{earn:'₦1,200 per CC activated + override earnings',team:'Minimum 5 Campus Coordinators',quota:'10,000 student signups per quarter',report:'Daily report by 8:00 PM'},
-    pfc:{earn:'₦2,500 per PM activated + override earnings',team:'Minimum 5 Project Managers',quota:'50,000 student signups per quarter',report:'Daily report by 9:00 PM'},
-  };
-  const ri=roleInfo[form.role]||roleInfo.ambassador;
+  // Brief summary shown before form
   if(step==='consent')return(
-    <div style={{minHeight:'100vh',background:'var(--bg)',padding:'20px 16px',overflowY:'auto'}}>
-      <div style={{maxWidth:480,margin:'0 auto'}}>
-        <div style={{background:'var(--blue)',borderRadius:20,padding:'20px 20px 16px',marginBottom:12,color:'#fff'}}>
-          <div style={{fontWeight:900,fontSize:18,marginBottom:4}}>📋 RehoVTU Member Agreement</div>
-          <div style={{fontSize:12,opacity:.75}}>Read carefully before registering as {ROLE_LABELS[form.role]}</div>
-        </div>
-
-        {/* WORKBOOK */}
-        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
-          <div style={{fontWeight:800,fontSize:15,color:'var(--blue)',marginBottom:10}}>📘 Role Workbook — {ROLE_LABELS[form.role]}</div>
-          <div style={{fontSize:13,color:'var(--text)',lineHeight:1.7}}>
-            <b>Your Earnings:</b> {ri.earn}<br/>
-            <b>Team Requirement:</b> {ri.team}<br/>
-            <b>Sales Quota:</b> {ri.quota}<br/>
-            <b>Report Deadline:</b> {ri.report}
-          </div>
-        </div>
-
-        {/* RULES & REGULATIONS */}
-        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
-          <div style={{fontWeight:800,fontSize:15,color:'var(--orange)',marginBottom:10}}>📜 Rules & Regulations</div>
-          {[
-            'You must submit your daily activity report before your role deadline every weekday.',
-            'Missing a report incurs an automatic fine deducted from your earnings (₦500–₦3,000 depending on role).',
-            'You are responsible for all members you recruit. Fake signups lead to immediate termination.',
-            'Payment disputes must be raised within 7 days of payout date.',
-            'Members found engaging in fraud or misrepresentation will be removed without payout.',
-            'All earnings are paid monthly after verification by the Founder.',
-          ].map((r,i)=>(
-            <div key={i} style={{display:'flex',gap:8,marginBottom:8,fontSize:13,color:'var(--text)',lineHeight:1.5}}>
-              <span style={{color:'var(--orange)',fontWeight:700,flexShrink:0}}>{i+1}.</span>
-              <span>{r}</span>
+    <div style={{minHeight:'100vh',background:'var(--bg)',padding:'20px 16px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{maxWidth:460,width:'100%',background:'#fff',borderRadius:20,padding:24,boxShadow:'var(--shadow)'}}>
+        <div style={{fontWeight:900,fontSize:18,color:'var(--blue)',marginBottom:4}}>📋 Before You Apply</div>
+        <div style={{fontSize:13,color:'var(--muted)',marginBottom:16}}>A quick summary of what joining RehoVTU means</div>
+        {[
+          ['💰','Earn commissions','Based on your role — from ₦500 per signup (Ambassador) up to ₦2,500 per activation (PFC).'],
+          ['📋','Submit daily reports','Every weekday before your deadline. Missing a report incurs an automatic fine.'],
+          ['👥','Build your team','Recruit and activate members below you to unlock higher override earnings.'],
+          ['🔒','Keep it confidential','Commission structures, member data and business strategies are private. Do not share.'],
+          ['⚠️','Zero tolerance for fraud','Fake signups or misrepresentation leads to immediate removal without payout.'],
+        ].map(([icon,title,desc])=>(
+          <div key={title} style={{display:'flex',gap:12,marginBottom:14,alignItems:'flex-start'}}>
+            <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:'var(--text)'}}>{title}</div>
+              <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.5}}>{desc}</div>
             </div>
-          ))}
-        </div>
-
-        {/* DEDUCTION TABLE */}
-        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
-          <div style={{fontWeight:800,fontSize:15,color:'#c62828',marginBottom:10}}>💸 Fine Schedule</div>
-          <table style={{width:'100%',fontSize:13,borderCollapse:'collapse'}}>
-            <thead><tr style={{background:'#fff3e0'}}>
-              <th style={{padding:'8px 10px',textAlign:'left',borderRadius:'8px 0 0 0'}}>Role</th>
-              <th style={{padding:'8px 10px',textAlign:'right'}}>Daily Miss</th>
-              <th style={{padding:'8px 10px',textAlign:'right',borderRadius:'0 8px 0 0'}}>Weekly Miss</th>
-            </tr></thead>
-            <tbody>
-              {[['Ambassador','₦500','₦500'],['Campus Coordinator','₦1,000','₦1,000'],['Project Manager','₦2,000','₦2,000'],['PFC','₦3,000','₦3,000']].map(([r,d,w])=>(
-                <tr key={r} style={{borderBottom:'1px solid #f5f5f5'}}>
-                  <td style={{padding:'7px 10px'}}>{r}</td>
-                  <td style={{padding:'7px 10px',textAlign:'right',color:'#c62828',fontWeight:700}}>{d}</td>
-                  <td style={{padding:'7px 10px',textAlign:'right',color:'#c62828',fontWeight:700}}>{w}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* NON-DISCLOSURE */}
-        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:10,boxShadow:'var(--shadow)'}}>
-          <div style={{fontWeight:800,fontSize:15,color:'var(--purple)',marginBottom:10}}>🔒 Non-Disclosure Agreement</div>
-          <div style={{fontSize:13,color:'var(--text)',lineHeight:1.7}}>
-            By joining RehoVTU, you agree to keep all internal commission structures, member data, referral networks, business strategies, and Founder contact information strictly confidential. You may not share, reproduce, or disclose any proprietary information to any third party — including competing platforms — during or after your membership. Breach of this NDA may result in legal action and forfeiture of all earnings.
           </div>
+        ))}
+        <div style={{background:'#f5f5f5',borderRadius:10,padding:12,marginBottom:16,fontSize:12,color:'var(--muted)',lineHeight:1.6}}>
+          By continuing, you agree to RehoVTU rules, report obligations, and non-disclosure of internal information.
         </div>
-
-        {/* CONSENT CHECKBOX */}
-        <div style={{background:'#fff',borderRadius:16,padding:18,marginBottom:16,boxShadow:'var(--shadow)'}}>
-          <label style={{display:'flex',gap:12,alignItems:'flex-start',cursor:'pointer'}}>
-            <input type="checkbox" checked={consentChecked} onChange={e=>setConsentChecked(e.target.checked)}
-              style={{marginTop:3,width:18,height:18,cursor:'pointer',accentColor:'var(--blue)'}}/>
-            <span style={{fontSize:13,color:'var(--text)',lineHeight:1.6}}>
-              I have read and understood the Role Workbook, Rules & Regulations, Fine Schedule, and Non-Disclosure Agreement. I agree to abide by all RehoVTU policies.
-            </span>
-          </label>
+        <Btn full onClick={()=>setStep('form')}>I Understand — Continue →</Btn>
+        <div style={{textAlign:'center',marginTop:10}}>
+          <button onClick={()=>onNavigate('landing')} style={{background:'none',border:'none',color:'var(--muted)',fontSize:13,cursor:'pointer'}}>← Back</button>
         </div>
-
-        <Btn full onClick={()=>{if(!consentChecked){alert('Please read and check the agreement above to continue.');return;}setStep('form');}}
-          style={{marginBottom:12}}>
-          I Agree — Continue to Register →
-        </Btn>
-        <div style={{textAlign:'center'}}><button onClick={()=>onNavigate('landing')} style={{background:'none',border:'none',color:'var(--muted)',fontSize:13,cursor:'pointer'}}>← Back</button></div>
       </div>
     </div>
   );
