@@ -3470,6 +3470,11 @@ function useAppState(){
   useEffect(()=>{
     const ref=new URLSearchParams(window.location.search).get('ref');
     if(ref)sessionStorage.setItem('ref_code',ref);
+    // Hard fallback: if app never leaves loading after 6s, force it
+    const fallbackTimer=setTimeout(()=>{
+      const rc=sessionStorage.getItem('ref_code');
+      setScreen(rc?'team':'landing');
+    },6000);
     setTimeout(async()=>{
       try{
         const[u,s,st,b,d,g,r]=await Promise.all([DB.get('users'),DB.get('signups'),DB.get('settings'),DB.get('broadcasts'),DB.get('dms'),DB.get('grp'),DB.get('reports')]);
@@ -3477,13 +3482,11 @@ function useAppState(){
         if(!au['FOUNDER'])au['FOUNDER']=FOUNDER_ACCT;
         setUsers(au);setSignups(s||[]);setSettings(st||DEFAULT_SETTINGS);
         setBroadcasts(b||[]);setDms(d||[]);setGrp(g||[]);setReports(r||[]);
-      }catch{}
-      // If a ref link was used, go straight to registration
-      if(ref){
-        setScreen('team');
-      } else {
-        setScreen('landing');
-      }
+      }catch(e){console.warn('DB load error',e);}
+      clearTimeout(fallbackTimer);
+      // Read ref from sessionStorage (reliable even if closure had issues)
+      const rc=sessionStorage.getItem('ref_code');
+      setScreen(rc?'team':'landing');
     },1600);
   },[]);
 
