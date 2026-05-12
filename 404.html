@@ -97,17 +97,21 @@ const DB={
 
   async get(k){
     try{
+      const ctrl=new AbortController();
+      const tid=setTimeout(()=>ctrl.abort(),4000); // 4s timeout
       const r=await fetch(`${FB_URL}/${encodeURIComponent(k)}`,{
         headers:{'Content-Type':'application/json'},
-        cache:'no-store'
+        cache:'no-store',
+        signal:ctrl.signal
       });
+      clearTimeout(tid);
       if(r.status===404)return this._lsGet(k);
       if(!r.ok)throw 0;
       const d=await r.json();
       const val=this._fromFS(d.fields);
       if(val!==null){this._lsSet(k,val);return val;}
     }catch{}
-    return this._lsGet(k);
+    return this._lsGet(k); // fallback to localStorage
   },
 
   async set(k,val){
@@ -3477,7 +3481,9 @@ function useAppState(){
     },6000);
     setTimeout(async()=>{
       try{
-        const[u,s,st,b,d,g,r]=await Promise.all([DB.get('users'),DB.get('signups'),DB.get('settings'),DB.get('broadcasts'),DB.get('dms'),DB.get('grp'),DB.get('reports')]);
+        const timeout=new Promise(res=>setTimeout(res,5000)); // max 5s for all DB calls
+        const dbLoad=Promise.all([DB.get('users'),DB.get('signups'),DB.get('settings'),DB.get('broadcasts'),DB.get('dms'),DB.get('grp'),DB.get('reports')]);
+        const[u,s,st,b,d,g,r]=await Promise.race([dbLoad,timeout.then(()=>[null,null,null,null,null,null,null])]);
         const au=u||{};
         if(!au['FOUNDER'])au['FOUNDER']=FOUNDER_ACCT;
         setUsers(au);setSignups(s||[]);setSettings(st||DEFAULT_SETTINGS);
@@ -3487,7 +3493,7 @@ function useAppState(){
       // Read ref from sessionStorage (reliable even if closure had issues)
       const rc=sessionStorage.getItem('ref_code');
       setScreen(rc?'team':'landing');
-    },1600);
+    },500);
   },[]);
 
   // sync logged-in user with store
